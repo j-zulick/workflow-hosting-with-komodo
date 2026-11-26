@@ -1,0 +1,48 @@
+x-windmill-database: &windmill-database
+  DATABASE_URL: "postgres://postgres:${WINDMILL_DB_PASSWORD:?Set WINDMILL_DB_PASSWORD}@db:5432/windmill?sslmode=disable"
+
+services:
+  db:
+    image: postgres:${POSTGRES_VERSION:?Set POSTGRES_VERSION}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: windmill
+      POSTGRES_PASSWORD: ${WINDMILL_DB_PASSWORD:?Set WINDMILL_DB_PASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d windmill"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  server:
+    image: ${WINDMILL_IMAGE:?Set WINDMILL_IMAGE}
+    restart: unless-stopped
+    environment:
+      <<: *windmill-database
+      MODE: server
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WINDMILL_PORT:-8000}:8000"
+    volumes:
+      - job-logs:/tmp/windmill/logs
+
+  worker:
+    image: ${WINDMILL_IMAGE:?Set WINDMILL_IMAGE}
+    restart: unless-stopped
+    environment:
+      <<: *windmill-database
+      MODE: worker
+      WORKER_GROUP: default
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - job-logs:/tmp/windmill/logs
+
+volumes:
+  database:
+  job-logs:
