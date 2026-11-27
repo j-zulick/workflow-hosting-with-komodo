@@ -2,7 +2,7 @@
 
 The gate checks the rendered Compose model and the containers running on the local daemon. It runs a saved synthetic workflow with a fresh nonce. Two passing receipts are comparable only for the same stack, project, volume identities, and saved workflow marker.
 
-The [hosted n8n rehearsal](https://github.com/j-zulick/workflow-hosting-with-komodo/actions/runs/45960318513) passed from 2.49.6 to 2.49.7. The runner retained the saved workflow and named volume. The before and after receipts matched the workflow marker and two-item result, and recorded different application image IDs. The same check runs on changes to these guides.
+The [hosted verification](https://github.com/j-zulick/workflow-hosting-with-komodo/actions/runs/45962276422) checked the same n8n workflow before and after the image upgrade from 2.49.6 to 2.49.7, then restored the backup on the prior image in a separate Compose project. The Windmill lab ran one saved job on its pinned worker. CI retains the before, after, restored and worker receipts.
 
 ## Check the Compose examples offline
 

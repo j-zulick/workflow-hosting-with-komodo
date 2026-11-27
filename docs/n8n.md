@@ -2,7 +2,7 @@
 
 This guide draws on operating n8n as a Komodo Stack. The example uses a new project, a single n8n process, and SQLite. It pins [n8n 2.49.7](https://github.com/n8n-io/n8n/releases/tag/n8n%402.49.7).
 
-**Verification.** Docker Compose 5.7.0 validated the example with its example environment file. Image pulls, n8n startup, workflow execution, Komodo deployment, and recovery are pending. The test runner could parse Compose configuration but could not access a Docker daemon.
+**Verification.** The disposable CI lab started n8n 2.49.6, ran the saved synthetic workflow, backed up its stopped SQLite volume, upgraded to 2.49.7, and repeated the workflow. A separate 2.49.6 project restored the backup into a new named volume and returned the same result. The Komodo deployment is an operator step. [Verification run](https://github.com/j-zulick/workflow-hosting-with-komodo/actions/runs/45962276422)
 
 ## Start with Docker Compose
 

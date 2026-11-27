@@ -4,7 +4,7 @@ This is a reference deployment. It uses the Community Edition [Windmill 1.877.0 
 
 The upstream [v1.886.0 release](https://github.com/windmill-labs/windmill/releases/tag/v1.886.0) is a candidate for a later rehearsal. This example retains the recorded 1.877.0 image digest until a newer manifest is verified. An application upgrade and a PostgreSQL major migration are separate rehearsals.
 
-**Verification.** Docker Compose 5.7.0 validated the example with its example environment file. The standalone Bash sample returned `{"items":2,"status":"ok"}`. Image pulls, startup, worker execution, Komodo deployment, and recovery are pending because the test runner could not access a Docker daemon. The existing inventory confirms a self-hosted Compose project. Komodo ownership remains unverified.
+**Verification.** The pinned server, PostgreSQL and worker started in a disposable Compose lab. The authenticated workspace saved and invoked the Bash fixture. The worker returned the expected two-item result and the receipt recorded its image and mounts. A Windmill upgrade, database restore and Komodo deployment are separate operator rehearsals. [Verification run](https://github.com/j-zulick/workflow-hosting-with-komodo/actions/runs/45962276422)
 
 ## Start with Docker Compose
 
