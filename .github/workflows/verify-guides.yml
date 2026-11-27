@@ -11,10 +11,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 14
     env:
-      LAB_ENV: ${{ runner.temp }}/workflow-lab-n8n.env
       LAB_PROJECT: workflow-lab-n8n
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set the isolated lab path
+        run: printf 'LAB_ENV=%s/workflow-lab-n8n.env\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Check both Compose examples and the verification tool
         run: |
           python3 tools/lab_gate.py config --stack n8n
