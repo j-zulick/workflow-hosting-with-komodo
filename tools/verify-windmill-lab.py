@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import subprocess
@@ -44,10 +45,14 @@ def main():
     if not token or any(char.isspace() for char in token):
         raise RuntimeError("The loopback lab returned an invalid login response.")
 
-    workspace, username = "workflowlab", "labadmin"
+    workspace = "workflowlab"
     client_call("/workspaces/create", token=token, payload={
-        "id": workspace, "name": "Workflow lab", "username": username,
+        "id": workspace, "name": "Workflow lab",
     })
+    user = json.loads(client_call(f"/w/{workspace}/users/whoami", token=token))
+    username = user.get("username", "")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", username):
+        raise RuntimeError("The disposable workspace did not assign a valid username.")
     marker = secrets.token_hex(16)
     script = f"u/{username}/workflow_hosting_upgrade_smoke"
     base = f"/w/{workspace}/scripts"

@@ -33,6 +33,7 @@ jobs:
           "${compose[@]}" run --rm -T -v "$RUNNER_TEMP/workflow-lab-smoke.json:/tmp/workflow-lab-smoke.json:ro" n8n import:workflow --input=/tmp/workflow-lab-smoke.json
           "${compose[@]}" run --rm -T n8n publish:workflow --id=WorkflowHostingSmoke
           "${compose[@]}" up -d
+          bash tools/wait-for-n8n-fixture.sh "$LAB_PROJECT" "$LAB_ENV"
           python3 tools/lab_gate.py run --stack n8n --project "$LAB_PROJECT" --env-file "$LAB_ENV" \
             --marker "$marker" --phase before --receipt "$RUNNER_TEMP/n8n-before.json"
       - name: Upgrade the container and verify the retained workflow
@@ -41,6 +42,7 @@ jobs:
           compose=(docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml)
           "${compose[@]}" pull
           "${compose[@]}" up -d
+          bash tools/wait-for-n8n-fixture.sh "$LAB_PROJECT" "$LAB_ENV"
           marker=$(cat "$RUNNER_TEMP/workflow-lab-marker")
           python3 tools/lab_gate.py run --stack n8n --project "$LAB_PROJECT" --env-file "$LAB_ENV" \
             --marker "$marker" --phase after --receipt "$RUNNER_TEMP/n8n-after.json"
