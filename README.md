@@ -9,7 +9,7 @@ Deploy a loopback-only Docker Compose lab, record the running image, and repeat 
 - [Run the upgrade verification gate](docs/verification.md) to compare the pre-update and post-update receipts.
 - [Back up, upgrade, and recover](docs/upgrades-and-recovery.md) to preserve data and rehearse a restore.
 
-Both examples passed real Compose configuration validation. The upgrade gate passed its regression suite with simulated runtime responses, and both workflow snippets executed with the expected output. Native container, Komodo, and restore rehearsals remain pending.
+Both examples pass Compose configuration validation. A disposable hosted runner verified an n8n upgrade from 2.49.6 to 2.49.7. The same saved workflow returned the expected two-item result after the application image changed and its named volume was retained. [Verification run](https://github.com/j-zulick/workflow-hosting-with-komodo/actions/runs/45960318513).
 
 ## Where I use this setup
 

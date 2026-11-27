@@ -2,6 +2,8 @@
 
 The gate checks the rendered Compose model and the containers running on the local daemon. It runs a saved synthetic workflow with a fresh nonce. Two passing receipts are comparable only for the same stack, project, volume identities, and saved workflow marker.
 
+The [hosted n8n rehearsal](https://github.com/j-zulick/workflow-hosting-with-komodo/actions/runs/45960318513) passed from 2.49.6 to 2.49.7. The runner retained the saved workflow and named volume. The before and after receipts matched the workflow marker and two-item result, and recorded different application image IDs. The same check runs on changes to these guides.
+
 ## Check the Compose examples offline
 
 From the checkout, run the checks below with Python 3.10+, Docker Compose, Node.js, and Bash. Compose rendering uses its CLI and can complete without an engine. The tests exercise Compose rendering, local fixture code, and the HTTP and daemon contracts with test doubles.
