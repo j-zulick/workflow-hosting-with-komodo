@@ -1,0 +1,119 @@
+name: Verify workflow hosting guides
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  n8n-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      LAB_PROJECT: workflow-lab-n8n
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Set the isolated lab path
+        run: printf 'LAB_ENV=%s/workflow-lab-n8n.env\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Check both Compose examples and the verification tool
+        run: |
+          python3 tools/lab_gate.py config --stack n8n
+          python3 tools/lab_gate.py config --stack windmill
+          python3 -m unittest discover -s tests -v
+      - name: Create an isolated n8n state and publish one synthetic workflow
+        run: |
+          printf 'N8N_VERSION=2.49.6\nN8N_PORT=5678\n' > "$LAB_ENV"
+          marker=$(openssl rand -hex 16)
+          printf '%s\n' "$marker" > "$RUNNER_TEMP/workflow-lab-marker"
+          python3 tools/lab_gate.py fixture --stack n8n --marker "$marker" |
+            jq '.id = "WorkflowHostingSmoke"' > "$RUNNER_TEMP/workflow-lab-smoke.json"
+          compose=(docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml)
+          "${compose[@]}" pull
+          "${compose[@]}" run --rm -T -v "$RUNNER_TEMP/workflow-lab-smoke.json:/tmp/workflow-lab-smoke.json:ro" n8n import:workflow --input=/tmp/workflow-lab-smoke.json
+          "${compose[@]}" run --rm -T n8n publish:workflow --id=WorkflowHostingSmoke
+          "${compose[@]}" up -d
+          bash tools/wait-for-n8n-fixture.sh "$LAB_PROJECT" "$LAB_ENV"
+          python3 tools/lab_gate.py run --stack n8n --project "$LAB_PROJECT" --env-file "$LAB_ENV" \
+            --marker "$marker" --phase before --receipt "$RUNNER_TEMP/n8n-before.json"
+      - name: Back up the stopped pre-upgrade n8n volume
+        run: |
+          umask 077
+          compose=(docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml)
+          "${compose[@]}" stop n8n
+          "${compose[@]}" run --rm --no-deps -T --user root --entrypoint tar n8n \
+            -C /home/node/.n8n -czf - . > "$RUNNER_TEMP/n8n-preupgrade.tar.gz"
+          tar -tzf "$RUNNER_TEMP/n8n-preupgrade.tar.gz" > "$RUNNER_TEMP/n8n-backup-members.txt"
+          grep -Fx './database.sqlite' "$RUNNER_TEMP/n8n-backup-members.txt"
+      - name: Upgrade the container and verify the retained workflow
+        run: |
+          sed -i 's/^N8N_VERSION=2.49.6$/N8N_VERSION=2.49.7/' "$LAB_ENV"
+          compose=(docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml)
+          "${compose[@]}" pull
+          "${compose[@]}" up -d
+          bash tools/wait-for-n8n-fixture.sh "$LAB_PROJECT" "$LAB_ENV"
+          marker=$(cat "$RUNNER_TEMP/workflow-lab-marker")
+          python3 tools/lab_gate.py run --stack n8n --project "$LAB_PROJECT" --env-file "$LAB_ENV" \
+            --marker "$marker" --phase after --receipt "$RUNNER_TEMP/n8n-after.json"
+          python3 tools/lab_gate.py compare "$RUNNER_TEMP/n8n-before.json" "$RUNNER_TEMP/n8n-after.json"
+      - name: Restore the backup into a new project with the previous app version
+        run: |
+          restore_project=workflow-lab-n8n-restore
+          restore_env="$RUNNER_TEMP/n8n-restore.env"
+          printf 'N8N_VERSION=2.49.6\nN8N_PORT=15678\n' > "$restore_env"
+          compose=(docker compose -p "$restore_project" --env-file "$restore_env" -f examples/n8n/compose.yaml)
+          "${compose[@]}" run --rm --no-deps -T --user root --entrypoint sh n8n -ec '
+            cd /home/node/.n8n
+            test -z "$(ls -A)"
+            tar -xzf -
+            chown -R node:node .
+          ' < "$RUNNER_TEMP/n8n-preupgrade.tar.gz"
+          "${compose[@]}" up -d
+          bash tools/wait-for-n8n-fixture.sh "$restore_project" "$restore_env"
+          marker=$(cat "$RUNNER_TEMP/workflow-lab-marker")
+          python3 tools/lab_gate.py run --stack n8n --project "$restore_project" --env-file "$restore_env" \
+            --marker "$marker" --phase after --receipt "$RUNNER_TEMP/n8n-restored.json"
+          jq -e -s '.[0].workflow == .[1].workflow and .[0].images == .[1].images and .[0].state != .[1].state' \
+            "$RUNNER_TEMP/n8n-before.json" "$RUNNER_TEMP/n8n-restored.json"
+      - name: Preserve test receipts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: n8n-upgrade-receipts
+          path: |
+            ${{ runner.temp }}/n8n-before.json
+            ${{ runner.temp }}/n8n-after.json
+            ${{ runner.temp }}/n8n-restored.json
+      - name: Stop disposable services
+        if: always()
+        run: |
+          if test -f "$LAB_ENV"; then
+            docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml down -v
+          fi
+          if test -f "$RUNNER_TEMP/n8n-restore.env"; then
+            docker compose -p workflow-lab-n8n-restore --env-file "$RUNNER_TEMP/n8n-restore.env" -f examples/n8n/compose.yaml down -v
+          fi
+  windmill-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Start the pinned disposable Windmill lab
+        run: |
+          umask 077
+          password=$(openssl rand -hex 24)
+          sed "s/REPLACE_WITH_RANDOM_HEX/$password/" examples/windmill/.env.example > "$RUNNER_TEMP/workflow-lab-windmill.env"
+          docker compose -p workflow-lab-windmill --env-file "$RUNNER_TEMP/workflow-lab-windmill.env" -f examples/windmill/compose.yaml up -d
+      - name: Verify one saved job on the real worker
+        run: |
+          python3 tools/verify-windmill-lab.py --env-file "$RUNNER_TEMP/workflow-lab-windmill.env" --receipt "$RUNNER_TEMP/windmill-receipt.json"
+      - name: Preserve the test receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: windmill-worker-receipt
+          path: ${{ runner.temp }}/windmill-receipt.json
+      - name: Stop disposable services
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/workflow-lab-windmill.env"; then
+            docker compose -p workflow-lab-windmill --env-file "$RUNNER_TEMP/workflow-lab-windmill.env" -f examples/windmill/compose.yaml down -v
+          fi

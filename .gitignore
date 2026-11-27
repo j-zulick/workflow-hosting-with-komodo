@@ -4,3 +4,6 @@
 backups/
 *.dump
 *.tar.gz
+
+*.receipt.json
+__pycache__/
