@@ -33,6 +33,8 @@ Check that the archive includes the SQLite database and the n8n configuration. K
 
 ## Windmill PostgreSQL and job logs
 
+The commands below apply to the single-database PostgreSQL 17 example and its job logs. A deployment with additional Windmill databases, including Data Tables, DuckLake, or fork databases, needs a cluster-level or equivalent coordinated backup before relying on a restore. Verify which databases exist with `docker compose -p windmill-guide --env-file .env exec -T db psql -U postgres -d postgres -c '\l'`. For PostgreSQL 18 changes, follow the [upstream cluster migration and mount procedure](https://www.windmill.dev/docs/advanced/self_host#upgrade-postgresql-to-18) in its own isolated rehearsal.
+
 From `examples/windmill`, stop the server and worker after jobs have drained. Keep PostgreSQL running. Use [pg_dump](https://www.postgresql.org/docs/17/app-pgdump.html) for the database and export the roles so Windmill's database grants have their expected targets at restore time. The role export here omits role passwords. Preserve any custom login secrets and external workspace encryption keys separately.
 
 ```sh

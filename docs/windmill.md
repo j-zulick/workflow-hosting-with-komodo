@@ -2,6 +2,8 @@
 
 This is a reference deployment. It uses the Community Edition [Windmill 1.877.0 container](https://github.com/windmill-labs/windmill/pkgs/container/windmill/versions), pinned by tag and manifest digest for both server and worker, and [PostgreSQL 17.12 Alpine](https://hub.docker.com/_/postgres/tags?name=17.12-alpine).
 
+The upstream [v1.886.0 release](https://github.com/windmill-labs/windmill/releases/tag/v1.886.0) is a candidate for a later rehearsal. This example retains the recorded 1.877.0 image digest until a newer manifest is verified. An application upgrade and a PostgreSQL major migration are separate rehearsals.
+
 **Verification.** Docker Compose 5.7.0 validated the example with its example environment file. The standalone Bash sample returned `{"items":2,"status":"ok"}`. Image pulls, startup, worker execution, Komodo deployment, and recovery are pending because the test runner could not access a Docker daemon. The existing inventory confirms a self-hosted Compose project. Komodo ownership remains unverified.
 
 ## Start with Docker Compose
@@ -65,6 +67,8 @@ Create a [Komodo Stack](https://komo.do/docs/deploy/compose) and select a test S
 Use [Komodo's secret settings](https://komo.do/docs/configuration/variables) for the hex password. When adopting the CLI lab on the same host, use its original database password and project name. Check `docker compose ls` and the existing volumes first. A different host starts with empty local volumes. Save the Stack, select **Deploy**, and inspect the update plus all three service states. Repeat the health and completed job checks against this deployment. Let Komodo own subsequent deploys for a Komodo-managed Stack.
 
 ## Upgrade and verify again
+
+The [automated isolated verification gate](verification.md) requires Windmill health and runs the saved Bash fixture through a worker.
 
 1. Record the server and worker image references and IDs using the inspect loop above. Record the current health and worker state, then [back up PostgreSQL and job logs](upgrades-and-recovery.md#windmill-postgresql-and-job-logs).
 2. Review [Windmill releases](https://github.com/windmill-labs/windmill/releases) and choose a target Community Edition image from the [container registry](https://github.com/windmill-labs/windmill/pkgs/container/windmill/versions). Update `WINDMILL_IMAGE` to the new tag and matching digest in the Stack environment or local `.env`. Both services read that one setting. Keep the PostgreSQL major version fixed for this application upgrade.

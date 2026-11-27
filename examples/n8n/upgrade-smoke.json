@@ -1,0 +1,54 @@
+{
+  "name": "Workflow hosting upgrade smoke",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "workflow-hosting-upgrade-smoke",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "709243c2-efc1-4cf6-8812-4cabfae2c05b",
+      "name": "Lab webhook",
+      "webhookId": "b6b679fc-d1ad-4296-b3f1-479d13df34b7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const nonce = $input.first().json.body?.nonce;\nif (typeof nonce !== 'string' || !/^[0-9a-f]{32}$/.test(nonce)) {\n  throw new Error('Expected a hexadecimal lab nonce');\n}\nreturn [{ json: { items: 2, status: 'ok', marker: 'REPLACE_WITH_FIXTURE_MARKER', nonce } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "4d6d1d48-d012-4cb5-8d36-b3cc418cb566",
+      "name": "Echo fixture"
+    }
+  ],
+  "connections": {
+    "Lab webhook": {
+      "main": [
+        [
+          {
+            "node": "Echo fixture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none"
+  }
+}

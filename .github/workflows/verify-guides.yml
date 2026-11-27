@@ -1,0 +1,59 @@
+name: Verify workflow hosting guides
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  n8n-upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    env:
+      LAB_ENV: ${{ runner.temp }}/workflow-lab-n8n.env
+      LAB_PROJECT: workflow-lab-n8n
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Check both Compose examples and the verification tool
+        run: |
+          python3 tools/lab_gate.py config --stack n8n
+          python3 tools/lab_gate.py config --stack windmill
+          python3 -m unittest discover -s tests -v
+      - name: Create an isolated n8n state and publish one synthetic workflow
+        run: |
+          printf 'N8N_VERSION=2.49.6\nN8N_PORT=5678\n' > "$LAB_ENV"
+          marker=$(openssl rand -hex 16)
+          printf '%s\n' "$marker" > "$RUNNER_TEMP/workflow-lab-marker"
+          python3 tools/lab_gate.py fixture --stack n8n --marker "$marker" |
+            jq '.id = "WorkflowHostingSmoke"' > "$RUNNER_TEMP/workflow-lab-smoke.json"
+          compose=(docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml)
+          "${compose[@]}" pull
+          "${compose[@]}" run --rm -T -v "$RUNNER_TEMP/workflow-lab-smoke.json:/tmp/workflow-lab-smoke.json:ro" n8n import:workflow --input=/tmp/workflow-lab-smoke.json
+          "${compose[@]}" run --rm -T n8n publish:workflow --id=WorkflowHostingSmoke
+          "${compose[@]}" up -d
+          python3 tools/lab_gate.py run --stack n8n --project "$LAB_PROJECT" --env-file "$LAB_ENV" \
+            --marker "$marker" --phase before --receipt "$RUNNER_TEMP/n8n-before.json"
+      - name: Upgrade the container and verify the retained workflow
+        run: |
+          sed -i 's/^N8N_VERSION=2.49.6$/N8N_VERSION=2.49.7/' "$LAB_ENV"
+          compose=(docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml)
+          "${compose[@]}" pull
+          "${compose[@]}" up -d
+          marker=$(cat "$RUNNER_TEMP/workflow-lab-marker")
+          python3 tools/lab_gate.py run --stack n8n --project "$LAB_PROJECT" --env-file "$LAB_ENV" \
+            --marker "$marker" --phase after --receipt "$RUNNER_TEMP/n8n-after.json"
+          python3 tools/lab_gate.py compare "$RUNNER_TEMP/n8n-before.json" "$RUNNER_TEMP/n8n-after.json"
+      - name: Preserve test receipts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: n8n-upgrade-receipts
+          path: |
+            ${{ runner.temp }}/n8n-before.json
+            ${{ runner.temp }}/n8n-after.json
+      - name: Stop disposable services
+        if: always()
+        run: |
+          if test -f "$LAB_ENV"; then
+            docker compose -p "$LAB_PROJECT" --env-file "$LAB_ENV" -f examples/n8n/compose.yaml down -v
+          fi

@@ -6,9 +6,10 @@ Deploy a loopback-only Docker Compose lab, record the running image, and repeat 
 
 - [Start with n8n](docs/n8n.md) to run a two-node workflow and inspect its execution.
 - [Start with Windmill](docs/windmill.md) to run a Bash script and check the worker and result.
+- [Run the upgrade verification gate](docs/verification.md) to compare the pre-update and post-update receipts.
 - [Back up, upgrade, and recover](docs/upgrades-and-recovery.md) to preserve data and rehearse a restore.
 
-Both examples passed Compose configuration validation. Container and workflow runs are pending.
+Both examples passed real Compose configuration validation. The upgrade gate passed its regression suite with simulated runtime responses, and both workflow snippets executed with the expected output. Native container, Komodo, and restore rehearsals remain pending.
 
 ## Where I use this setup
 
